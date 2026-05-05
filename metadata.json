@@ -1,0 +1,8 @@
+{
+  "name": "Raitha-Varta",
+  "description": "Raitha-Varta is a 'Flash-Card Advisor' for farmers in Karnataka. It provides actionable daily tips, crop-specific guidance, and disease detection support in Kannada and English.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}

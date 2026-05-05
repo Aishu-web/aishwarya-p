@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Farmer or Expert profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["farmer", "expert", "admin"] },
+        "preferredLanguage": { "type": "string", "enum": ["kn", "en"] },
+        "district": { "type": "string" },
+        "favoriteCrops": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["uid", "role"]
+    },
+    "Tip": {
+      "title": "Tip",
+      "description": "Daily flash-card tip for farmers",
+      "type": "object",
+      "properties": {
+        "title": { "type": "object", "properties": { "en": { "type": "string" }, "kn": { "type": "string" } } },
+        "content": { "type": "object", "properties": { "en": { "type": "string" }, "kn": { "type": "string" } } },
+        "imageUrl": { "type": "string" },
+        "category": { "type": "string", "enum": ["Paddy", "Areca nut", "Coconut", "Tomato", "Pest Control", "Fertilizer", "Weather"] },
+        "verified": { "type": "boolean" },
+        "authorId": { "type": "string" },
+        "usefulCount": { "type": "number", "default": 0 },
+        "reportCount": { "type": "number", "default": 0 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "content", "category", "verified"]
+    },
+    "TipFeedback": {
+      "title": "TipFeedback",
+      "description": "User feedback on a tip",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["useful", "inaccurate"] },
+        "reason": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "type"]
+    },
+    "SuccessStory": {
+      "title": "SuccessStory",
+      "description": "Local farmer success stories",
+      "type": "object",
+      "properties": {
+        "farmerName": { "type": "string" },
+        "location": { "type": "string" },
+        "story": { "type": "object", "properties": { "en": { "type": "string" }, "kn": { "type": "string" } } },
+        "imageUrl": { "type": "string" },
+        "crop": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["farmerName", "story", "imageUrl"]
+    },
+    "ExpertAsk": {
+      "title": "ExpertAsk",
+      "description": "Questions sent to experts by farmers",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "message": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "answered"] },
+        "response": { "type": "string" },
+        "detailedProtocol": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "message", "status"]
+    },
+    "UserToken": {
+      "title": "UserToken",
+      "description": "FCM device registration token",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "token": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "token"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/tips/{tipId}": {
+      "schema": "Tip",
+      "description": "Flash-card agricultural tips"
+    },
+    "/tips/{tipId}/feedback/{userId}": {
+      "schema": "TipFeedback",
+      "description": "Individual user feedback on a tip"
+    },
+    "/success_stories/{storyId}": {
+      "schema": "SuccessStory",
+      "description": "Farmer success stories"
+    },
+    "/expert_asks/{askId}": {
+      "schema": "ExpertAsk",
+      "description": "User questions for agricultural experts"
+    },
+    "/user_tokens/{tokenId}": {
+      "schema": "UserToken",
+      "description": "FCM registration tokens for push notifications"
+    }
+  }
+}

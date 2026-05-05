@@ -1,0 +1,163 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // -------------------------------------------------------------------------
+    // 0. Global Safety Net
+    // -------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. Primitives & Helpers
+    // -------------------------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && (request.auth.token.email_verified == true);
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isExpert() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'expert'
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // 1. User Rules
+    // -------------------------------------------------------------------------
+    function isValidUser(data) {
+      return data.uid is string &&
+             data.displayName is string &&
+             data.role in ['farmer', 'expert', 'admin'] &&
+             data.favoriteCrops is list &&
+             data.preferredLanguage in ['en', 'kn'];
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'preferredLanguage', 'district', 'favoriteCrops'])
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. Tips Rules
+    // -------------------------------------------------------------------------
+    function isValidTip(data) {
+      return data.title.en is string && data.title.kn is string &&
+             data.content.en is string && data.content.kn is string &&
+             data.category in ["Paddy", "Areca nut", "Coconut", "Tomato", "Pest Control", "Fertilizer", "Weather"] &&
+             data.verified is bool;
+    }
+
+    match /tips/{tipId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isExpert() && isValidTip(incoming());
+      allow update: if (isExpert() && isValidTip(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'imageUrl', 'category', 'verified'])
+      )) || (
+        // Action: User Feedback (Useful)
+        isEmailVerified() && 
+        incoming().diff(existing()).affectedKeys().hasOnly(['usefulCount']) &&
+        incoming().usefulCount == (existing().get('usefulCount', 0) + 1) &&
+        existsAfter(/databases/$(database)/documents/tips/$(tipId)/feedback/$(request.auth.uid))
+      ) || (
+        // Action: User Feedback (Report)
+        isEmailVerified() && 
+        incoming().diff(existing()).affectedKeys().hasOnly(['reportCount']) &&
+        incoming().reportCount == (existing().get('reportCount', 0) + 1) &&
+        existsAfter(/databases/$(database)/documents/tips/$(tipId)/feedback/$(request.auth.uid))
+      );
+      allow delete: if isAdmin();
+
+      match /feedback/{userId} {
+        allow create: if isOwner(userId) && 
+                      incoming().type in ['useful', 'inaccurate'] &&
+                      (incoming().type == 'inaccurate' ? (incoming().get('reason', '') is string && incoming().get('reason', '').size() > 0) : true) &&
+                      incoming().createdAt == request.time;
+        allow read: if isSignedIn();
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. Success Stories Rules
+    // -------------------------------------------------------------------------
+    match /success_stories/{storyId} {
+      allow read: if true;
+      allow create: if isExpert();
+      allow update: if isExpert();
+      allow delete: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 4. Expert Ask Rules
+    // -------------------------------------------------------------------------
+    function isValidExpertAsk(data) {
+      return data.userId == request.auth.uid &&
+             data.message is string && data.message.size() > 0 && data.message.size() <= 2000 &&
+             data.status == 'pending' &&
+             data.createdAt == request.time;
+    }
+
+    match /expert_asks/{askId} {
+      allow create: if isEmailVerified() && isValidExpertAsk(incoming());
+      allow get: if isSignedIn() && (isOwner(resource.data.userId) || isExpert());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isExpert());
+      allow update: if isEmailVerified() && (
+        // Action: Owner updates with detailed protocol
+        (isOwner(existing().userId) && 
+         incoming().diff(existing()).affectedKeys().hasOnly(['detailedProtocol']) &&
+         incoming().detailedProtocol is string &&
+         incoming().detailedProtocol.size() <= 20000) ||
+        // Action: Owner self-providing AI response (Client-side AI architecture)
+        (isOwner(existing().userId) && 
+         existing().status == 'pending' && 
+         incoming().status == 'answered' && 
+         incoming().userId == existing().userId &&
+         incoming().message == existing().message &&
+         incoming().response is string && 
+         incoming().response.size() <= 10000 &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'response'])) ||
+        // Action: Expert manual reply
+        (isExpert() && 
+         incoming().userId == existing().userId &&
+         incoming().message == existing().message &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'response']))
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Admin collection to bootstrap permissions
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+    }
+  }
+}

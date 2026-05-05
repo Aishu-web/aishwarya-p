@@ -1,0 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=Noto+Sans+Kannada:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", "Inter", "Noto Sans Kannada", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.markdown-body h3 {
+  @apply text-sm font-bold text-emerald-900 mt-5 mb-2 px-2 py-1 bg-emerald-50 rounded-md border-l-4 border-emerald-500 flex items-center gap-2;
+}
+.markdown-body h2 {
+  @apply text-base font-bold text-emerald-800 mt-4 mb-2 flex items-center gap-2;
+}
+.markdown-body p {
+  @apply text-sm text-zinc-700 leading-relaxed mb-3;
+}
+.markdown-body ul {
+  @apply list-disc list-inside mb-3 text-sm text-zinc-600;
+}
+.markdown-body li {
+  @apply mb-1;
+}
+.markdown-body strong {
+  @apply text-emerald-700 font-bold;
+}
+
